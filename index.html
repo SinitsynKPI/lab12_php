@@ -3,23 +3,286 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Генератор випадкових рецептів на вечерю</title>
-    <link rel="stylesheet" href="style.css">
+    <title>Практична №12 - Профіль висоти веломаршруту (Варіант 14)</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f6f8;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 700px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+        }
+        h2 {
+            margin-top: 0;
+            color: #2f7d32;
+        }
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        select, button {
+            padding: 8px 14px;
+            font-size: 14px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            outline: none;
+        }
+        button {
+            background-color: #2f7d32;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #235d25;
+        }
+        canvas {
+            background: #fafafa;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            display: block;
+            width: 100%;
+            max-width: 650px;
+            height: 300px;
+        }
+        .stats {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #555;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🍳 Генератор рецептів на вечерю</h1>
-        <p class="subtitle">Не знаєте що приготувати? Довіртеся випадковому вибору!</p>
-        <div class="generator-box">
-            <div class="icon-container" id="iconContainer">
-                <span class="cooking-icon">🍲</span>
-            </div>
-            <button id="generateBtn" class="btn">Згенерувати рецепт</button>
-        </div>
-        <div id="recipeResult" class="recipe-card hidden">
-        </div>
+
+<div class="container">
+    <h2>Карта веломаршрутів міста: Профіль висоти</h2>
+    
+    <div class="controls">
+        <label for="routeSelect">Оберіть маршрут:</label>
+        <select id="routeSelect"></select>
+        <button id="animateBtn">Запустити анімацію</button>
     </div>
 
-    <script src="script.js"></script>
+    <!-- Canvas для малювання лінійного графіка профілю висоти -->
+    <canvas id="elevationCanvas" width="650" height="300"></canvas>
+
+    <div class="stats" id="routeStats">
+        <!-- Динамічна статистика маршруту -->
+    </div>
+</div>
+
+<script>
+    // Початкові дані веломаршрутів (доменні дані для варіанта 14)
+    const defaultRoutes = [
+        {
+            id: 1,
+            name: "Зелене кільце (Парковий)",
+            points: [
+                { distance: 0, elevation: 120 },
+                { distance: 2, elevation: 135 },
+                { distance: 4, elevation: 160 },
+                { distance: 6, elevation: 140 },
+                { distance: 8, elevation: 180 },
+                { distance: 10, elevation: 150 },
+                { distance: 12, elevation: 130 },
+                { distance: 15, elevation: 125 }
+            ]
+        },
+        {
+            id: 2,
+            name: "Сзгірський серпантин",
+            points: [
+                { distance: 0, elevation: 100 },
+                { distance: 3, elevation: 180 },
+                { distance: 5, elevation: 240 },
+                { distance: 7, elevation: 290 },
+                { distance: 10, elevation: 210 },
+                { distance: 12, elevation: 150 },
+                { distance: 14, elevation: 100 }
+            ]
+        },
+        {
+            id: 3,
+            name: "Набережна магістраль",
+            points: [
+                { distance: 0, elevation: 90 },
+                { distance: 4, elevation: 95 },
+                { distance: 8, elevation: 92 },
+                { distance: 12, elevation: 98 },
+                { distance: 18, elevation: 91 }
+            ]
+        }
+    ];
+
+    // Ініціалізація та робота з localStorage (Практикум 11)
+    function initStorage() {
+        if (!localStorage.getItem('bikeRoutes')) {
+            localStorage.setItem('bikeRoutes', JSON.stringify(defaultRoutes));
+        }
+        return JSON.parse(localStorage.getItem('bikeRoutes'));
+    }
+
+    const routes = initStorage();
+    const routeSelect = document.getElementById('routeSelect');
+    const animateBtn = document.getElementById('animateBtn');
+    const canvas = document.getElementById('elevationCanvas');
+    const ctx = canvas.getContext('2d');
+    const statsContainer = document.getElementById('routeStats');
+
+    let animationId = null;
+    let progress = 1; // Прогрес анімації від 0 до 1
+
+    // Заповнення випадаючого списку маршрутів
+    function populateRoutes() {
+        routeSelect.innerHTML = '';
+        routes.forEach((route, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = route.name;
+            routeSelect.appendChild(option);
+        });
+    }
+
+    // Головна функція рендерингу профілю висоти на Canvas
+    function drawElevationProfile(route, animProgress = 1) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const points = route.points;
+        if (!points || points.length === 0) return;
+
+        const padding = 40;
+        const chartWidth = canvas.width - padding * 2;
+        const chartHeight = canvas.height - padding * 2;
+
+        const maxDist = Math.max(...points.map(p => p.distance));
+        const maxElev = Math.max(...points.map(p => p.elevation)) * 1.15; // Запас зверху
+        const minElev = 0;
+
+        // Малювання осей координат
+        ctx.strokeStyle = '#d0d0d0';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(padding, canvas.height - padding);
+        ctx.lineTo(canvas.width - padding, canvas.height - padding); // Вісь X
+        ctx.moveTo(padding, padding);
+        ctx.lineTo(padding, canvas.height - padding); // Вісь Y
+        ctx.stroke();
+
+        // Підписи осей
+        ctx.fillStyle = '#666';
+        ctx.font = '12px sans-serif';
+        ctx.fillText('Висота (м)', padding - 30, padding - 10);
+        ctx.fillText('Дистанція (км)', canvas.width - padding - 60, canvas.height - padding + 25);
+
+        // Функції переведення даних у пікселі canvas
+        function getX(dist) {
+            return padding + (dist / maxDist) * chartWidth;
+        }
+        function getY(elev) {
+            return canvas.height - padding - ((elev - minElev) / (maxElev - minElev)) * chartHeight;
+        }
+
+        // Обчислення кількості видимих точок для анімації
+        const visiblePointsCount = Math.max(2, Math.floor(points.length * animProgress));
+        const activePoints = points.slice(0, visiblePointsCount);
+
+        // Градієнтне заповнення області під графіком
+        const gradient = ctx.createLinearGradient(0, padding, 0, canvas.height - padding);
+        gradient.addColorStop(0, 'rgba(47, 125, 50, 0.35)');
+        gradient.addColorStop(1, 'rgba(47, 125, 50, 0.02)');
+
+        ctx.beginPath();
+        ctx.moveTo(getX(activePoints[0].distance), canvas.height - padding);
+        activePoints.forEach(p => {
+            ctx.lineTo(getX(p.distance), getY(p.elevation));
+        });
+        ctx.lineTo(getX(activePoints[activePoints.length - 1].distance), canvas.height - padding);
+        ctx.closePath();
+        ctx.fillStyle = gradient;
+        ctx.fill();
+
+        // Лінія профілю висоти
+        ctx.beginPath();
+        ctx.moveTo(getX(activePoints[0].distance), getY(activePoints[0].elevation));
+        for (let i = 1; i < activePoints.length; i++) {
+            ctx.lineTo(getX(activePoints[i].distance), getY(activePoints[i].elevation));
+        }
+        ctx.strokeStyle = '#2f7d32';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        // Маркери точок на графіку
+        activePoints.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(getX(p.distance), getY(p.elevation), 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.strokeStyle = '#2f7d32';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        });
+
+        // Виведення текстової статистики маршруту
+        const peakElev = Math.max(...points.map(p => p.elevation));
+        statsContainer.innerHTML = `
+            <div><strong>Загальна довжина:</strong> ${maxDist} км</div>
+            <div><strong>Максимальна висота:</strong> ${peakElev} м</div>
+            <div><strong>Точок на маршруті:</strong> ${points.length}</div>
+        `;
+    }
+
+    // Цикл анімації через requestAnimationFrame (Крок 5)
+    function startAnimation() {
+        if (animationId) {
+            cancelAnimationFrame(animationId);
+        }
+        progress = 0;
+        const selectedRoute = routes[routeSelect.value];
+
+        function animateFrame() {
+            progress += 0.025; // Швидкість анімації появи
+            if (progress >= 1) {
+                progress = 1;
+                drawElevationProfile(selectedRoute, progress);
+                cancelAnimationFrame(animationId);
+                animationId = null;
+                return;
+            }
+            drawElevationProfile(selectedRoute, progress);
+            animationId = requestAnimationFrame(animateFrame);
+        }
+
+        animationId = requestAnimationFrame(animateFrame);
+    }
+
+    // Обробники подій взаємодії з інтерфейсом
+    routeSelect.addEventListener('change', () => {
+        if (animationId) cancelAnimationFrame(animationId);
+        progress = 1;
+        drawElevationProfile(routes[routeSelect.value], 1);
+    });
+
+    animateBtn.addEventListener('click', startAnimation);
+
+    // Первинне завантаження
+    populateRoutes();
+    drawElevationProfile(routes[0], 1);
+</script>
+
 </body>
 </html>
