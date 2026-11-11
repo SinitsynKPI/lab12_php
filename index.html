@@ -80,7 +80,8 @@
 
     <canvas id="elevationCanvas" width="650" height="300"></canvas>
 
-    <div class="stats" id="routeStats"></div>
+    <div class="stats" id="routeStats">
+    </div>
 </div>
 
 <script>
@@ -101,7 +102,7 @@
         },
         {
             id: 2,
-            name: "Загірський серпантин",
+            name: "Гірський серпантин",
             points: [
                 { distance: 0, elevation: 100 },
                 { distance: 3, elevation: 180 },
@@ -140,7 +141,7 @@
     const statsContainer = document.getElementById('routeStats');
 
     let animationId = null;
-    let progress = 1;
+    let progress = 1; 
 
     function populateRoutes() {
         routeSelect.innerHTML = '';
@@ -163,18 +164,17 @@
         const chartHeight = canvas.height - padding * 2;
 
         const maxDist = Math.max(...points.map(p => p.distance));
-        const maxElev = Math.max(...points.map(p => p.elevation)) * 1.15;
+        const maxElev = Math.max(...points.map(p => p.elevation)) * 1.15; 
         const minElev = 0;
 
         ctx.strokeStyle = '#d0d0d0';
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(padding, canvas.height - padding);
-        ctx.lineTo(canvas.width - padding, canvas.height - padding);
+        ctx.lineTo(canvas.width - padding, canvas.height - padding); 
         ctx.moveTo(padding, padding);
-        ctx.lineTo(padding, canvas.height - padding);
+        ctx.lineTo(padding, canvas.height - padding); 
         ctx.stroke();
-
         ctx.fillStyle = '#666';
         ctx.font = '12px sans-serif';
         ctx.fillText('Висота (м)', padding - 30, padding - 10);
@@ -187,49 +187,39 @@
             return canvas.height - padding - ((elev - minElev) / (maxElev - minElev)) * chartHeight;
         }
 
-        ctx.save();
-        const currentClipWidth = chartWidth * animProgress;
-        
-        ctx.beginPath();
-        ctx.rect(padding, 0, currentClipWidth, canvas.height);
-        ctx.clip();
+        const visiblePointsCount = Math.max(2, Math.floor(points.length * animProgress));
+        const activePoints = points.slice(0, visiblePointsCount);
 
         const gradient = ctx.createLinearGradient(0, padding, 0, canvas.height - padding);
         gradient.addColorStop(0, 'rgba(47, 125, 50, 0.35)');
         gradient.addColorStop(1, 'rgba(47, 125, 50, 0.02)');
 
         ctx.beginPath();
-        ctx.moveTo(getX(points[0].distance), canvas.height - padding);
-        points.forEach(p => {
+        ctx.moveTo(getX(activePoints[0].distance), canvas.height - padding);
+        activePoints.forEach(p => {
             ctx.lineTo(getX(p.distance), getY(p.elevation));
         });
-        ctx.lineTo(getX(points[points.length - 1].distance), canvas.height - padding);
+        ctx.lineTo(getX(activePoints[activePoints.length - 1].distance), canvas.height - padding);
         ctx.closePath();
         ctx.fillStyle = gradient;
         ctx.fill();
-
         ctx.beginPath();
-        ctx.moveTo(getX(points[0].distance), getY(points[0].elevation));
-        for (let i = 1; i < points.length; i++) {
-            ctx.lineTo(getX(points[i].distance), getY(points[i].elevation));
+        ctx.moveTo(getX(activePoints[0].distance), getY(activePoints[0].elevation));
+        for (let i = 1; i < activePoints.length; i++) {
+            ctx.lineTo(getX(activePoints[i].distance), getY(activePoints[i].elevation));
         }
         ctx.strokeStyle = '#2f7d32';
         ctx.lineWidth = 3;
         ctx.stroke();
-
-        points.forEach(p => {
-            if (getX(p.distance) <= padding + currentClipWidth) {
-                ctx.beginPath();
-                ctx.arc(getX(p.distance), getY(p.elevation), 4, 0, Math.PI * 2);
-                ctx.fillStyle = '#fff';
-                ctx.fill();
-                ctx.strokeStyle = '#2f7d32';
-                ctx.lineWidth = 2;
-                ctx.stroke();
-            }
+        activePoints.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(getX(p.distance), getY(p.elevation), 4, 0, Math.PI * 2);
+            ctx.fillStyle = '#fff';
+            ctx.fill();
+            ctx.strokeStyle = '#2f7d32';
+            ctx.lineWidth = 2;
+            ctx.stroke();
         });
-
-        ctx.restore();
 
         const peakElev = Math.max(...points.map(p => p.elevation));
         statsContainer.innerHTML = `
