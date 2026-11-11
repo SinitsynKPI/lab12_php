@@ -1,4 +1,3 @@
-// Початковий масив рецептів домену (інтеграція з localStorage з практикуму 11)
 const defaultRecipes = [
     {
         id: 1,
@@ -36,15 +35,11 @@ const defaultRecipes = [
         description: "Обсмажте курку. Змішайте порване листя салату, сухарики, слайси сиру, додайте шматочки курки та заправте соусом."
     }
 ];
-
-// Ініціалізація даних у localStorage, якщо вони відсутні
 function initLocalStorage() {
     if (!localStorage.getItem('dinner_recipes')) {
         localStorage.setItem('dinner_recipes', JSON.stringify(defaultRecipes));
     }
 }
-
-// Отримання масиву даних із localStorage
 function getRecipes() {
     return JSON.parse(localStorage.getItem('dinner_recipes')) || defaultRecipes;
 }
@@ -56,32 +51,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const iconContainer = document.getElementById('iconContainer');
     const cookingIcon = iconContainer.querySelector('.cooking-icon');
     const recipeResult = document.getElementById('recipeResult');
-
-    // Обробник кліку для запуску процесу генерації та анімації
     generateBtn.addEventListener('click', () => {
-        // Блокуємо кнопку на час анімації та ховаємо попередній результат
         generateBtn.disabled = true;
         recipeResult.classList.add('hidden');
-        
-        // Запускаємо CSS-анімацію (@keyframes через перемикання класу)
         cookingIcon.classList.add('spinning');
-
-        // Імітуємо процес перемішування тривалістю 1.2 секунди
         setTimeout(() => {
             const recipes = getRecipes();
             const randomIndex = Math.floor(Math.random() * recipes.length);
             const selectedRecipe = recipes[randomIndex];
-
-            // Рендеримо вибраний випадковий рецепт на сторінці
             renderRecipe(selectedRecipe);
-
-            // Зупиняємо анімацію та розблоковуємо кнопку
             cookingIcon.classList.remove('spinning');
             generateBtn.disabled = false;
         }, 1200);
     });
-
-    // Функція рендерингу з плавним ефектом появи (fade-in)
     function renderRecipe(recipe) {
         recipeResult.innerHTML = `
             <h3>${recipe.title}</h3>
@@ -94,7 +76,6 @@ document.addEventListener('DOMContentLoaded', () => {
         `;
         
         recipeResult.style.display = 'block';
-        // Невелика затримка для спрацювання CSS transition
         setTimeout(() => {
             recipeResult.classList.remove('hidden');
         }, 10);
